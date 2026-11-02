@@ -128,9 +128,12 @@ public:
             const index_type max_N = amrex::max(NI1, NI2);
             const index_type min_N = amrex::min(NI1, NI2);
 
-            // Each macroparticle of the larger set collides with one partner per collision step,
-            // although min_N partners are available: scale the probability accordingly.
-            auto const multiplier = static_cast<double>(min_N);
+            // Each macroparticle of the larger set collides once per step, with one of the possible
+            // partners. Scale the probability such that every macroparticle of the smaller set has
+            // the correct rate: if max_N is not a multiple of min_N, these have either
+            // floor(max_N/min_N) or floor(max_N/min_N) + 1 pairs, so this depends on coll_idx.
+            index_type const n_pairs_of_partner = (max_N - 1 - coll_idx) / min_N + 1;
+            double const multiplier = static_cast<double>(max_N) / static_cast<double>(n_pairs_of_partner);
 
             index_type pair_index = cell_start_pair + coll_idx;
             index_type i1 = I1s + coll_idx;
