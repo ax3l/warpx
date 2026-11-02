@@ -6,6 +6,7 @@
  */
 #include "ImpactIonizationFunc.H"
 
+#include "Utils/Physics/AtomicOrbitalEnergiesTable.H"
 #include "Utils/Physics/IonizationEnergiesTable.H"
 #include "Utils/TextMsg.H"
 #include "Utils/WarpXConst.H"
@@ -40,11 +41,14 @@ namespace
      * \brief Add one bound electron to the moments of the cross section.
      *
      * This is the relativistic binary-encounter-Bethe cross section, per bound electron, of
-     * Kim, Santos, Parente, Phys. Rev. A 62, 052710 (2000), with the kinetic energy of the bound
-     * electron set to its binding energy, as tables of the former are not available for all ions.
+     * Kim, Santos, Parente, Phys. Rev. A 62, 052710 (2000), Eq. (22), with the kinetic energy of
+     * the bound electron set to its binding energy, as tables of the former are not available
+     * for all ions. See Perez et al., Phys. Plasmas 19, 083104 (2012), Eqs. (31)-(33).
      *
      * In the reduced energies t = T/B and w = W/B, the first moment follows from integrating
      * w dsigma/dw from 0 to (t - 1)/2, i.e., the new electron is the slower one of the two.
+     * Note that the last term of Eq. (33) of Perez et al. has a typo: it must have t ln(t) instead
+     * of ln(t), which this integral gives.
      *
      * @param[in] tau kinetic energy of the incident electron, normalized to m_e c^2
      * @param[in] b binding energy, normalized to m_e c^2
@@ -134,6 +138,11 @@ ImpactIonizationFunc::ImpactIonizationFunc (const std::string& collision_name,
     auto const element = utils::physics::ion_map_ids.find(physical_element);
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(element != utils::physics::ion_map_ids.end(),
         "Unknown physical element '" + physical_element + "' of species " + species_names[1] + ".");
+    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
+        utils::physics::ion_atomic_numbers[element->second] <= utils::physics::orbital_energies_max_atomic_number,
+        "Impact ionization collision " + collision_name + " needs orbital binding energies, which are only available "
+        "up to atomic number " + std::to_string(utils::physics::orbital_energies_max_atomic_number) +
+        ", but species " + species_names[1] + " is " + physical_element + ".");
 
     BuildTables(element->second);
 }
@@ -162,19 +171,34 @@ ImpactIonizationFunc::BuildTables (int const ion_element_id)
     amrex::Gpu::HostVector<double> h_moment_W(total_size, 0.0);
     amrex::Gpu::HostVector<double> h_moment_E(total_size, 0.0);
 
+    // Binding energy of each electron of the neutral atom, from the most tightly bound one
+    std::vector<double> neutral_binding;
+    neutral_binding.reserve(atomic_number);
+    for (int subshell = utils::physics::orbital_subshell_offsets[atomic_number - 1];
+         subshell < utils::physics::orbital_subshell_offsets[atomic_number]; ++subshell)
+    {
+        neutral_binding.insert(neutral_binding.end(), utils::physics::table_orbital_occupations[subshell],
+                               utils::physics::table_orbital_binding_energies[subshell] / mc2_eV);
+    }
+
     for (int charge_state = 0; charge_state < atomic_number; ++charge_state)
     {
+        // Binding energies of an ion: the orbitals keep their distances in the neutral atom, shifted
+        // such that the least bound electron has the ionization energy of this charge state.
+        // Carlson et al., Atomic Data 2, 63 (1970), Eq. (4), and Perez et al. (2012), Eq. (30).
+        int const n_bound = atomic_number - charge_state;
+        double const ionization_energy = static_cast<double>(
+            utils::physics::table_ionization_energies[energies_offset + charge_state]) / mc2_eV;
+        double const shift = ionization_energy - neutral_binding[n_bound - 1];
+
         for (int i = 0; i < table_size; ++i)
         {
             double const tau = std::exp(log_tau_min + i * log_step);
             auto const index = static_cast<std::size_t>(charge_state) * table_size + i;
 
-            // The electrons that are bound to an ion of this charge state are the ones that
-            // successive ionization would remove, each with the corresponding ionization energy.
-            for (int level = charge_state; level < atomic_number; ++level)
+            for (int k = 0; k < n_bound; ++k)
             {
-                double const binding = static_cast<double>(
-                    utils::physics::table_ionization_energies[energies_offset + level]) / mc2_eV;
+                double const binding = shift + neutral_binding[k];
                 AddBoundElectron(tau, binding, h_sigma[index], h_moment_W[index], h_moment_E[index]);
             }
         }

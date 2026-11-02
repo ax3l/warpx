@@ -37,6 +37,17 @@
  * Macroparticles are not split. If the weights differ, the ion is only ionized with probability
  * min(1, w_e/w_i) and the electron only slows down with probability min(1, w_i/w_e), so that the
  * number of physical events min(w_e, w_i) per pair is conserved on average.
+ *
+ * Differences to Perez et al.: energies are applied in the ion rest frame instead of the
+ * center-of-mass frame, and the probability of each pair follows from its own weights (as in
+ * Higginson et al., J. Comput. Phys. 413, 109450 (2020)) instead of a density factor of the cell,
+ * which does not need the exclusion of electrons below threshold in their Sec. IV C.
+ *
+ * Limits: the probability of a pair must be small, i.e., max(n_e, n_i) sigma v dt << 1 (see
+ * ndt_subcycle): a pair ionizes at most once per step, and a pair changes the ion by its whole
+ * weight, so an electron of much larger weight ionizes too little if it saturates, see Morris et
+ * al., Phys. Plasmas 29, 123907 (2022), Fig. 2. There is no recombination, excited state, ionization
+ * potential depression, recoil of the ion, or spectrum of the new electrons (only their mean energy).
  */
 class ImpactIonizationFunc
     : public CollisionFuncBase

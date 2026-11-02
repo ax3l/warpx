@@ -20,10 +20,23 @@ density = 1.0e28
 beam_energy_eV = 1.0e6
 t_final = 300 * 1.0e-16
 
-# Sequential ionization energies of carbon [eV], from NIST (as in IonizationEnergiesTable.H)
+# Ionization energies [eV] of carbon from NIST (as in IonizationEnergiesTable.H)
 ionization_energies = np.array(
     [11.2602880, 24.383154, 47.88778, 64.49352, 392.090515, 489.993194]
 )
+# Orbital binding energies [eV] of neutral carbon from NIST (as in atomic_orbital_data.txt), which
+# set the binding energies of the ions, see Perez et al., Phys. Plasmas 19, 083104 (2012), Eq. (30)
+HARTREE_EV = 27.211386245988
+neutral_binding = (
+    np.array([9.946149, 9.946149, 0.501090, 0.501090, 0.199111, 0.199111]) * HARTREE_EV
+)
+
+
+def ion_binding_energies(state):
+    """Return the binding energies [eV] of all electrons bound to this charge state."""
+    n_bound = len(neutral_binding) - state
+    shift = ionization_energies[state] - neutral_binding[n_bound - 1]
+    return shift + neutral_binding[:n_bound]
 
 
 def rbeb(tau, b):
@@ -62,11 +75,12 @@ sigma = np.zeros(n_states - 1)
 mean_binding = np.zeros(n_states - 1)
 mean_W = np.zeros(n_states - 1)
 for state in range(n_states - 1):
-    s, w = zip(*(rbeb(tau, b / mc2_eV) for b in ionization_energies[state:]))
+    bindings = ion_binding_energies(state)
+    s, w = zip(*(rbeb(tau, b / mc2_eV) for b in bindings))
     s, w = np.array(s), np.array(w)
     sigma[state] = s.sum()
     mean_W[state] = (s * w).sum() / s.sum()
-    mean_binding[state] = (s * ionization_energies[state:]).sum() / s.sum() / mc2_eV
+    mean_binding[state] = (s * bindings).sum() / s.sum() / mc2_eV
 
 # Rate equations of the charge states at a constant beam energy
 velocity = c * np.sqrt(1.0 - 1.0 / (1.0 + tau) ** 2)
