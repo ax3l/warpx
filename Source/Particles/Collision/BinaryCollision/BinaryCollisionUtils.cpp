@@ -45,6 +45,9 @@ namespace BinaryCollisionUtils{
         else if (type == "dsmc") {
             return CollisionType::DSMC;
         }
+        else if (type == "impact_ionization") {
+            return CollisionType::ImpactIonization;
+        }
         else if (type == "linear_breit_wheeler") {
             amrex::Vector<std::string> species_name;
             // Check that incoming species are photons

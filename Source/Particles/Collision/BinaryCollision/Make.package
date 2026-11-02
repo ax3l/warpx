@@ -4,5 +4,6 @@ CEXE_sources += VirtualPhotonCreation.cpp
 
 include $(WARPX_HOME)/Source/Particles/Collision/BinaryCollision/DSMC/Make.package
 include $(WARPX_HOME)/Source/Particles/Collision/BinaryCollision/Bremsstrahlung/Make.package
+include $(WARPX_HOME)/Source/Particles/Collision/BinaryCollision/ImpactIonization/Make.package
 
 VPATH_LOCATIONS   += $(WARPX_HOME)/Source/Particles/Collision/BinaryCollision

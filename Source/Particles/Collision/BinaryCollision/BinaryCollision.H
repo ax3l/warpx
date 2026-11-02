@@ -11,6 +11,7 @@
 #include "Particles/Collision/BinaryCollision/Bremsstrahlung/BremsstrahlungFunc.H"
 #include "Particles/Collision/BinaryCollision/Coulomb/PairWiseCoulombCollisionFunc.H"
 #include "Particles/Collision/BinaryCollision/DSMC/DSMCFunc.H"
+#include "Particles/Collision/BinaryCollision/ImpactIonization/ImpactIonizationFunc.H"
 #include "Particles/Collision/BinaryCollision/NuclearFusion/NuclearFusionFunc.H"
 #include "Particles/Collision/BinaryCollision/LinearBreitWheeler/LinearBreitWheelerCollisionFunc.H"
 #include "Particles/Collision/BinaryCollision/LinearCompton/LinearComptonCollisionFunc.H"
@@ -195,6 +196,8 @@ public:
 
         auto& species1 = mypc->GetParticleContainerFromName(m_species_names[0]);
         auto& species2 = mypc->GetParticleContainerFromName(m_species_names[1]);
+
+        m_binary_collision_functor.SetupSpecies(species1, species2);
 
         // In case of particle creation, create the necessary vectors
         const int n_product_species = m_product_species.size();
@@ -460,7 +463,7 @@ public:
             amrex::ParticleReal* AMREX_RESTRICT p_pair_reaction_weight =
                                                                pair_reaction_weight.dataPtr();
             // Extra data needed when products are created
-            int const n_product_data = (binary_collision_functor.m_need_product_data ? n_total_pairs : 0);
+            int const n_product_data = (binary_collision_functor.m_need_product_data ? n_total_pairs*CollisionFunctor::n_product_data_per_pair : 0);
             amrex::Gpu::DeviceVector<amrex::ParticleReal> product_data(n_product_data);
             amrex::ParticleReal* AMREX_RESTRICT p_product_data = product_data.dataPtr();
             /*
@@ -945,7 +948,7 @@ public:
             amrex::ParticleReal* AMREX_RESTRICT p_pair_reaction_weight =
                                                                pair_reaction_weight.dataPtr();
             // Extra data needed when products are created
-            int const n_product_data = (binary_collision_functor.m_need_product_data ? n_total_pairs : 0);
+            int const n_product_data = (binary_collision_functor.m_need_product_data ? n_total_pairs*CollisionFunctor::n_product_data_per_pair : 0);
             amrex::Gpu::DeviceVector<amrex::ParticleReal> product_data(n_product_data);
             amrex::ParticleReal* AMREX_RESTRICT p_product_data = product_data.dataPtr();
             /*
