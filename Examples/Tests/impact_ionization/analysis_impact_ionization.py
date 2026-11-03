@@ -24,12 +24,9 @@ t_final = 300 * 1.0e-16
 ionization_energies = np.array(
     [11.2602880, 24.383154, 47.88778, 64.49352, 392.090515, 489.993194]
 )
-# Orbital binding energies [eV] of neutral carbon from NIST (as in atomic_orbital_data.txt), which
-# set the binding energies of the ions, see Perez et al., Phys. Plasmas 19, 083104 (2012), Eq. (30)
-HARTREE_EV = 27.211386245988
-neutral_binding = (
-    np.array([9.946149, 9.946149, 0.501090, 0.501090, 0.199111, 0.199111]) * HARTREE_EV
-)
+# Binding energies [eV] of the electrons of neutral carbon from EADL (as in atomic_orbital_data.txt),
+# which set the binding energies of the ions, see Perez et al., Phys. Plasmas 19, 083104 (2012), Eq. (30)
+neutral_binding = np.array([288.0, 288.0, 16.59, 16.59, 11.26, 11.26])
 
 
 def ion_binding_energies(state):

@@ -150,11 +150,8 @@ ImpactIonizationFunc::ImpactIonizationFunc (const std::string& collision_name,
     auto const element = utils::physics::ion_map_ids.find(physical_element);
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(element != utils::physics::ion_map_ids.end(),
         "Unknown physical element '" + physical_element + "' of species " + species_names[1] + ".");
-    WARPX_ALWAYS_ASSERT_WITH_MESSAGE(
-        utils::physics::ion_atomic_numbers[element->second] <= utils::physics::orbital_energies_max_atomic_number,
-        "Impact ionization collision " + collision_name + " needs orbital binding energies, which are only available "
-        "up to atomic number " + std::to_string(utils::physics::orbital_energies_max_atomic_number) +
-        ", but species " + species_names[1] + " is " + physical_element + ".");
+    static_assert(utils::physics::orbital_energies_max_atomic_number == utils::physics::nelements,
+                  "Binding energies must be available for all elements with ionization energies.");
 
     BuildTables(element->second);
 }
