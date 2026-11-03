@@ -52,11 +52,12 @@ namespace
      *
      * @param[in] tau kinetic energy of the incident electron, normalized to m_e c^2
      * @param[in] b binding energy, normalized to m_e c^2
+     * @param[in] averaged_denominator use the denominator of Kim et al. (2000), Eq. (37)
      * @param[in,out] sigma cross section [m^2]
      * @param[in,out] moment_W sigma times the mean energy of the new electron [m^2 m_e c^2]
      * @param[in,out] moment_E sigma times the mean energy lost by the incident electron [m^2 m_e c^2]
      */
-    void AddBoundElectron (double const tau, double const b,
+    void AddBoundElectron (double const tau, double const b, bool const averaged_denominator,
                            double& sigma, double& moment_W, double& moment_E)
     {
         // Below threshold
@@ -76,7 +77,13 @@ namespace
         double const beta_b2 = beta_squared(b);
         double const scale = 1.0 + 0.5 * tau;
 
-        double const prefactor = 2.0 * pi * r_e * r_e / (b * (beta_t2 + 2.0 * beta_b2));
+        double prefactor = 2.0 * pi * r_e * r_e / (b * (beta_t2 + 2.0 * beta_b2));
+        if (averaged_denominator)
+        {
+            // Kim et al. (2000), Eq. (37): the average of the 1/beta_t^2 and
+            // 1/(beta_t^2 + beta_u^2 + beta_b^2) denominators
+            prefactor *= 0.5 * (1.0 + (beta_t2 + 2.0 * beta_b2) / beta_t2);
+        }
         double const relativistic_log = std::log(beta_t2 / (1.0 - beta_t2)) - beta_t2 - std::log(2.0 * b);
         double const interference = (1.0 + 2.0 * tau) / (scale * scale);
         double const constant = b * b / (scale * scale);
@@ -135,6 +142,11 @@ ImpactIonizationFunc::ImpactIonizationFunc (const std::string& collision_name,
     std::string physical_element;
     const amrex::ParmParse pp_ions(species_names[1]);
     pp_ions.get("physical_element", physical_element);
+
+    // Charge state from which on to use Kim et al. (2000), Eq. (37). A negative value disables it,
+    // which reproduces Perez et al. (2012) and Smilei.
+    pp_collision_name.query("averaged_denominator_min_charge", m_averaged_denominator_min_charge);
+
     auto const element = utils::physics::ion_map_ids.find(physical_element);
     WARPX_ALWAYS_ASSERT_WITH_MESSAGE(element != utils::physics::ion_map_ids.end(),
         "Unknown physical element '" + physical_element + "' of species " + species_names[1] + ".");
@@ -190,6 +202,8 @@ ImpactIonizationFunc::BuildTables (int const ion_element_id)
         double const ionization_energy = static_cast<double>(
             utils::physics::table_ionization_energies[energies_offset + charge_state]) / mc2_eV;
         double const shift = ionization_energy - neutral_binding[n_bound - 1];
+        bool const averaged_denominator = (m_averaged_denominator_min_charge >= 0) &&
+                                          (charge_state >= m_averaged_denominator_min_charge);
 
         for (int i = 0; i < table_size; ++i)
         {
@@ -199,7 +213,8 @@ ImpactIonizationFunc::BuildTables (int const ion_element_id)
             for (int k = 0; k < n_bound; ++k)
             {
                 double const binding = shift + neutral_binding[k];
-                AddBoundElectron(tau, binding, h_sigma[index], h_moment_W[index], h_moment_E[index]);
+                AddBoundElectron(tau, binding, averaged_denominator,
+                                 h_sigma[index], h_moment_W[index], h_moment_E[index]);
             }
         }
     }

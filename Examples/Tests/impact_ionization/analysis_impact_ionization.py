@@ -39,15 +39,21 @@ def ion_binding_energies(state):
     return shift + neutral_binding[:n_bound]
 
 
-def rbeb(tau, b):
-    """Return sigma [m^2] and mean energies [mc^2] of the new electron, per bound electron."""
+def rbeb(tau, b, averaged_denominator):
+    """Return sigma [m^2] and mean energies [mc^2] of the new electron, per bound electron.
+
+    With averaged_denominator, this uses Kim et al., Phys. Rev. A 62, 052710 (2000), Eq. (37).
+    """
 
     def beta2(x):
         return 1.0 - 1.0 / (1.0 + x) ** 2
 
     t = tau / b
     scale = 1.0 + 0.5 * tau
-    prefactor = 2.0 * np.pi * r_e**2 / (b * (beta2(tau) + 2.0 * beta2(b)))
+    denominator = beta2(tau) + 2.0 * beta2(b)
+    prefactor = 2.0 * np.pi * r_e**2 / (b * denominator)
+    if averaged_denominator:
+        prefactor *= 0.5 * (1.0 + denominator / beta2(tau))
     log_term = np.log(beta2(tau) / (1.0 - beta2(tau))) - beta2(tau) - np.log(2.0 * b)
     interference = (1.0 + 2.0 * tau) / scale**2
     constant = b**2 / scale**2
@@ -76,7 +82,7 @@ mean_binding = np.zeros(n_states - 1)
 mean_W = np.zeros(n_states - 1)
 for state in range(n_states - 1):
     bindings = ion_binding_energies(state)
-    s, w = zip(*(rbeb(tau, b / mc2_eV) for b in bindings))
+    s, w = zip(*(rbeb(tau, b / mc2_eV, state >= 3) for b in bindings))
     s, w = np.array(s), np.array(w)
     sigma[state] = s.sum()
     mean_W[state] = (s * w).sum() / s.sum()

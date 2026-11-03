@@ -39,9 +39,11 @@
  * number of physical events min(w_e, w_i) per pair is conserved on average.
  *
  * Differences to Perez et al.: energies are applied in the ion rest frame instead of the
- * center-of-mass frame, and the probability of each pair follows from its own weights (as in
- * Higginson et al., J. Comput. Phys. 413, 109450 (2020)) instead of a density factor of the cell,
- * which does not need the exclusion of electrons below threshold in their Sec. IV C.
+ * center-of-mass frame, and the probability of each pair follows from its own weights
+ * (Higginson et al., J. Comput. Phys. 413, 109450 (2020), Eqs. 22, 23, 26 and 29) instead of the
+ * density factor n_e n_i / n_ei of the cell. Unlike that factor, this does not need the exclusion
+ * of electrons below threshold in their Sec. IV C, and it does not under-ionize if electrons of
+ * different energies and weights mix, see Morris et al., Phys. Plasmas 29, 123907 (2022), Fig. 1.
  *
  * Limits: the probability of a pair must be small, i.e., max(n_e, n_i) sigma v dt << 1 (see
  * ndt_subcycle): a pair ionizes at most once per step, and a pair changes the ion by its whole
@@ -335,6 +337,15 @@ public:
 private:
     /** Fill the tables of the moments of the cross section for all charge states of an element. */
     void BuildTables (int ion_element_id);
+
+    /** Charge state from which on the cross section uses the averaged denominator of
+     * Kim, Santos, Parente, Phys. Rev. A 62, 052710 (2000), Eq. (37), instead of Eq. (22).
+     *
+     * Kim et al. propose it for deep inner shells and for ions of net charge 3+ or higher. Compared
+     * to reference cross sections, it improves the ions near threshold, but overestimates neutral
+     * atoms and low charge states, where Eq. (22) is kept. A negative value disables it.
+     */
+    int m_averaged_denominator_min_charge = 3;
 
     amrex::Gpu::DeviceVector<double> m_sigma;
     amrex::Gpu::DeviceVector<double> m_moment_W;
